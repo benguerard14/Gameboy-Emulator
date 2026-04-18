@@ -1,10 +1,7 @@
 #ifndef GRAPHICS_H
 #define GRAPHICS_H
 
-#define PIXEL_SIZE 15
-#define SCREEN_COLOR 0xFFFFFFFF
-#define SCREEN_WIDTH 64
-#define SCREEN_HEIGHT 32
+#include <stdint.h>
 
 int graphics_init(void);
 
@@ -15,4 +12,7 @@ int graphics_exit(void);
 void graphics_sleep(int ms);
 
 void set_screen(char *screen);
+
+void set_pixel(int x, int y, uint8_t color);
+
 #endif
