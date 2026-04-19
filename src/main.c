@@ -22,12 +22,8 @@ void loop() {
         return;
       }
     }
-    printf("%d ", i);
-    //printf("%02b ", pixels[i]);
+    printf("%02b ", pixels[i]);
     set_pixel(i % 8, i / 8, pixels[i]);
-    if(i > 64){
-      break;
-    }
     i++;
     graphics_update();
   }
@@ -42,7 +38,6 @@ int main() {
   }
   printf("\n");
   loop();
-  graphics_sleep(5000);
   graphics_exit();
   return 0;
 }

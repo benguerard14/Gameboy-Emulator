@@ -34,3 +34,7 @@ char *get_string_file(char *file) {
   }
   return buff;
 }
+
+void emulator_init(){
+
+}
