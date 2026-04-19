@@ -1,4 +1,4 @@
-#include "emulator.h"
+#include "gameboy.h"
 #include "graphics.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_events.h>

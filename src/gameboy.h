@@ -1,49 +1,18 @@
-#ifndef EMULATOR_H
-#define EMULATOR_H
+#ifndef GAMEBOY_H 
+#define GAMEBOY_H
 
 #include <stdint.h>
+#include "cpu.h"
+#include <stddef.h>
 
-char *get_string_file(char *file);
+
+char *get_string_file(char *file, size_t *out_size);
 
 uint8_t* pixels_from_tile(uint8_t tile[16]);
 
 typedef struct {
   uint8_t a;
 } __attribute__((packed)) IORegs_t;
-
-
-typedef union {
-    struct {
-        uint8_t lo;
-        uint8_t hi;
-    };
-    uint16_t val;
-} reg16;
-
-typedef union {
-    struct {
-        uint8_t F;  // flags (low byte)
-        uint8_t A;  // accumulator (high byte)
-    };
-    struct {
-        uint8_t unused:4;
-        uint8_t C:1;
-        uint8_t H:1;
-        uint8_t N:1;
-        uint8_t Z:1;
-        uint8_t A_pad; // aligns with A
-    } flags;
-    uint16_t AF;
-} regAF;
-
-typedef struct {
-  reg16 AF;
-  reg16 BF;
-  reg16 DE;
-  reg16 HL;
-  reg16 SP;
-  regAF PC;
-}__attribute__((packed)) CPU;
 
 typedef struct {
   uint8_t rom_bank_0[0x3FFF];

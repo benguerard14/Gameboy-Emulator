@@ -1,9 +1,10 @@
-#include "emulator.h"
+#include "gameboy.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-#define PROGRAM_SIZE 1048576
+Gameboy gb;
 
 uint8_t* pixels_from_tile(uint8_t tile[16]){
   uint8_t* pixels = malloc(64 * sizeof(uint8_t));
@@ -19,22 +20,39 @@ uint8_t* pixels_from_tile(uint8_t tile[16]){
   return pixels;
 }
 
-char *get_string_file(char *file) {
-  static char buff[PROGRAM_SIZE];
+char *get_string_file(char *file, size_t *out_size) {
   FILE *f = fopen(file, "rb");
   if (!f) {
     printf("ERROR: Failed to Open ROM\n");
     exit(-1);
   }
-  size_t n = fread(buff, 1, PROGRAM_SIZE, f);
-  fclose(f);
-  if (n == 0) {
-    printf("ERROR: Nothing in file!\n");
+
+  fseek(f, 0, SEEK_END);
+  size_t file_size = ftell(f);
+  fseek(f, 0, SEEK_SET);
+
+  char *buff = malloc(file_size);
+  if (!buff) {
+    printf("ERROR: Failed to allocate memory\n");
+    fclose(f);
     exit(-1);
   }
+
+  size_t n = fread(buff, 1, file_size, f);
+  fclose(f);
+
+  if (n != file_size) {
+    printf("ERROR: Failed to read complete file\n");
+    free(buff);
+    exit(-1);
+  }
+
+  if (out_size) {
+    *out_size = file_size;
+  }
+
   return buff;
 }
 
 void emulator_init(){
-
 }
