@@ -1,8 +1,10 @@
+#include "emulator.h"
 #include "graphics.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_events.h>
+#include <stdint.h>
 
-void loop(){
+void loop() {
   int i = 0;
   SDL_Event event;
   while (1) {
@@ -17,8 +19,13 @@ void loop(){
   }
 }
 
-int main(){
+int main() {
   graphics_init();
+  char *str = get_string_file("roms/Tetris.gb");
+  for (int i = 0x104; i < 0x133; i++) {
+    printf("%02X ", *(uint8_t *)&str[i]);
+  }
+  printf("\n");
   loop();
   graphics_exit();
   return 0;
