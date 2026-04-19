@@ -5,6 +5,8 @@
 
 char *get_string_file(char *file);
 
+uint8_t* pixels_from_tile(uint8_t tile[16]);
+
 typedef struct {
   uint8_t a;
 } __attribute__((packed)) IORegs_t;

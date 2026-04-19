@@ -10,12 +10,12 @@ static SDL_Window *window;
 static SDL_Renderer *renderer;
 static SDL_Texture *texture;
 
-// Classic Game Boy palette
+// Game Boy palette
 static const uint32_t GB_PALETTE[4] = {
     0xFF9BBC0F, // Lightest
     0xFF8BAC0F, // Light
     0xFF306230, // Dark
-    0xFF0F380F  // Darkest
+    0xFF0F380F,  // Darkest
 };
 
 int graphics_init() {
