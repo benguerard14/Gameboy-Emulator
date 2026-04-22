@@ -1,6 +1,7 @@
 #ifndef CPU_H
 #define CPU_H
 
+#include "gameboy.h"
 #include <stdint.h>
 
 typedef union {
@@ -34,8 +35,8 @@ typedef struct {
   reg16 HL;
   reg16 SP;
   reg16 PC;
-} __attribute__((packed)) CPU;
+} CPU;
 
-uint8_t cpu_step(uint8_t *ins, CPU *cpu);
+uint8_t cpu_step(uint8_t *ins, CPU *cpu, Memory_t *mem);
 
 #endif

@@ -1,9 +1,14 @@
-#include "gameboy.h"
 #include "cpu.h"
+#include "gameboy.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+typedef struct {
+  Memory_t mem;
+  CPU cpu;
+}Gameboy;
 
 Gameboy gb;
 

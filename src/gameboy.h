@@ -1,7 +1,6 @@
 #ifndef GAMEBOY_H
 #define GAMEBOY_H
 
-#include "cpu.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -18,22 +17,17 @@ typedef struct {
 } __attribute__((packed)) IORegs_t;
 
 typedef struct {
-  uint8_t rom_bank_0[0x3FFF];
-  uint8_t rom_bank_1[0x3FFF];
-  uint8_t VRAM[0x1FFF];
-  uint8_t external_RAM[0x1FFF];
-  uint8_t WRAM[0x1FFF];
-  uint8_t echo_ram[0x1DFF];
-  uint8_t OAM[0x9F];
-  uint8_t no_access[0x5F];
+  uint8_t rom_bank_0[0x4000];
+  uint8_t rom_bank_1[0x4000];
+  uint8_t VRAM[0x2000];
+  uint8_t external_RAM[0x2000];
+  uint8_t WRAM[0x2000];
+  uint8_t echo_ram[0x1E00];
+  uint8_t OAM[0xA0];
+  uint8_t no_access[0x60];
   IORegs_t ioregs;
-  uint8_t HRAM[0x7E];
-  uint8_t interrupt_enable : 1;
+  uint8_t HRAM[0x7F];
+  uint8_t interrupt_enable;
 } __attribute__((packed)) Memory_t;
-
-typedef struct {
-  Memory_t mem;
-  CPU cpu;
-} Gameboy;
 
 #endif
