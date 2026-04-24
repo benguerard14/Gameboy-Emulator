@@ -33,7 +33,7 @@ int main() {
   free(rom);
 
   loop();
-  graphics_sleep(1000);
+  graphics_sleep(6000);
   graphics_exit();
   return 0;
 }
