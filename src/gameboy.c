@@ -1,5 +1,6 @@
-#include "cpu.h"
 #include "gameboy.h"
+#include "cpu.h"
+#include "util.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,7 +9,7 @@
 typedef struct {
   Memory_t mem;
   CPU cpu;
-}Gameboy;
+} Gameboy;
 
 Gameboy gb;
 
@@ -69,9 +70,9 @@ void emulator_init(char *rom, size_t size) {
   gb.cpu.HL.val = 0x014D;
 }
 
-uint8_t *fetch_instruction() {
-  uint8_t *ins;
-  ins = (uint8_t *)(&gb.mem) + gb.cpu.PC.val;
+uint8_t fetch_instruction() {
+  uint8_t ins;
+  ins = mem_read(&gb.mem, gb.cpu.PC.val);
   gb.cpu.PC.val++;
   return ins;
 }

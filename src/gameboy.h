@@ -10,7 +10,7 @@ uint8_t *pixels_from_tile(uint8_t tile[16]);
 
 void emulator_init(char *rom, size_t size);
 
-uint8_t *fetch_instruction();
+uint8_t fetch_instruction();
 
 typedef struct {
   uint8_t a;

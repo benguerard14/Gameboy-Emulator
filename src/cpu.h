@@ -37,6 +37,6 @@ typedef struct {
   reg16 PC;
 } CPU;
 
-uint8_t cpu_step(uint8_t *ins, CPU *cpu, Memory_t *mem);
+uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem);
 
 #endif
