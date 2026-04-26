@@ -354,16 +354,82 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   }
 
   // BLOCK 1
+  uint8_t reg_mask = 0b11000000;
   //  halt: absolutely no idea what it does and hope i don't have to find out
   if (ins == 0x76) {
     printf("Halt instruction. No idea what to do\n");
     return 2;
   }
-  uint8_t reg_mask = 0b11000000;
   // ld r8, r8
   if ((ins & reg_mask) == 0x40) {
     uint8_t val = get_reg8(ins & 0b111, cpu, mem);
     set_reg8((ins >> 3) & 0b111, cpu, mem, val);
+    return 1;
+  }
+
+  // BLOCK 2
+  uint8_t arithmetic_block = 0b11111000;
+  // add a, r8: add the value of r8 to a
+  if ((ins & arithmetic_block) == 0x80) {
+    uint8_t a = cpu->AF.A;
+    uint8_t r8 = get_reg8(ins & 0b111, cpu, mem);
+    cpu->AF.A += r8;
+    set_flags(cpu, (cpu->AF.A == 0), 0, (((a & 0xF) + (r8 & 0xF)) > 0xF),
+              ((uint16_t)a + (uint16_t)r8) > 0xFF);
+    return 1;
+  }
+  // adc a, r8: add the value of r8 + carry to a
+  if ((ins & arithmetic_block) == 0x88) {
+    uint8_t carry = cpu->AF.flags.C;
+    uint8_t a = cpu->AF.A;
+    uint8_t r8 = get_reg8(ins & 0b111, cpu, mem);
+    cpu->AF.A = a + r8 + carry;
+    set_flags(cpu, (cpu->AF.A == 0), 0,
+              (((a & 0xF) + (r8 & 0xF) + carry) > 0xF),
+              ((uint16_t)a + (uint16_t)r8 + carry) > 0xFF);
+    return 1;
+  }
+  // sub a, r8: substract r8 from a
+  if ((ins & arithmetic_block) == 0x90) {
+    uint8_t a = cpu->AF.A;
+    uint8_t r8 = get_reg8(ins & 0b111, cpu, mem);
+    cpu->AF.A -= r8;
+    set_flags(cpu, (cpu->AF.A == 0), 1, (r8 & 0xF) > (a & 0xF), (r8 > a));
+    return 1;
+  }
+  // sbc a, r8: sustract r8 + carry flag from a
+  if ((ins & arithmetic_block) == 0x98) {
+    uint8_t carry = cpu->AF.flags.C;
+    uint8_t a = cpu->AF.A;
+    uint8_t r8 = get_reg8(ins & 0b111, cpu, mem);
+    cpu->AF.A -= (r8 + carry);
+    set_flags(cpu, (cpu->AF.A == 0), 1, ((r8 & 0xF) + carry) > (a & 0xF),
+              ((r8 + carry) > a));
+    return 1;
+  }
+  // and a, r8: set a to r8 & a
+  if ((ins & arithmetic_block) == 0xA0) {
+    cpu->AF.A &= get_reg8(ins & 0b111, cpu, mem);
+    set_flags(cpu, (cpu->AF.A == 0), 0, 1, 0);
+    return 1;
+  }
+  // xor a, r8: set a to r8 ^ a
+  if ((ins & arithmetic_block) == 0xA8) {
+    cpu->AF.A ^= get_reg8(ins & 0b111, cpu, mem);
+    set_flags(cpu, (cpu->AF.A == 0), 0, 0, 0);
+    return 1;
+  }
+  // or a, r8: set a to r8 | a
+  if ((ins & arithmetic_block) == 0xB0) {
+    cpu->AF.A |= get_reg8(ins & 0b111, cpu, mem);
+    set_flags(cpu, (cpu->AF.A == 0), 0, 0, 0);
+    return 1;
+  }
+  // cp a, r8: basically sub but the operation is not performed. only flags
+  if ((ins & arithmetic_block) == 0xB8) {
+    uint8_t a = cpu->AF.A;
+    uint8_t r8 = get_reg8(ins & 0b111, cpu, mem);
+    set_flags(cpu, ((a - r8) == 0), 1, (r8 & 0xF) > (a & 0xF), (r8 > a));
     return 1;
   }
 
