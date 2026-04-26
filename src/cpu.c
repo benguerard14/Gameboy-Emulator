@@ -30,6 +30,11 @@ uint16_t pop_16(CPU *cpu, Memory_t *mem) {
 void enable_inputs(Memory_t *mem) {
   // todo:
   // Do not yet know how to  enable inputs
+  printf("Enabling inputs\n");
+}
+void disable_inputs(Memory_t *mem){
+  //also todo
+  printf("Disabling inputs\n");
 }
 
 void set_flags(CPU *cpu, uint8_t Z, uint8_t N, uint8_t H, uint8_t C) {
@@ -150,6 +155,41 @@ void set_reg16(uint8_t reg_num, CPU *cpu, uint16_t val) {
   }
 }
 
+uint16_t get_reg16stk(uint8_t reg_num, CPU *cpu) {
+  switch (reg_num) {
+  case 0x0:
+    return cpu->BC.val;
+  case 0x1:
+    return cpu->DE.val;
+  case 0x2:
+    return cpu->HL.val;
+  case 0x3:
+    return cpu->AF.AF;
+  default:
+    printf("ERROR: Getting invalid reg16\n");
+    exit(-1);
+  }
+}
+
+void set_reg16stk(uint8_t reg_num, CPU *cpu, uint16_t val) {
+  switch (reg_num) {
+  case (0x0):
+    cpu->BC.val = val;
+    return;
+  case (0x1):
+    cpu->DE.val = val;
+    return;
+  case (0x2):
+    cpu->HL.val = val;
+    return;
+  case (0x3):
+    cpu->AF.AF = val & 0xFFF0;
+    return;
+  default:
+    printf("ERROR: Setting invalid reg16\n");
+    exit(-1);
+  }
+}
 uint16_t get_memreg16(uint8_t reg_num, CPU *cpu) {
   switch (reg_num) {
   case 0x0:
@@ -168,6 +208,10 @@ uint16_t get_memreg16(uint8_t reg_num, CPU *cpu) {
     printf("ERROR: Invalid memreg16\n");
     exit(-1);
   }
+}
+
+uint8_t cb_instruction(){
+  return 0;
 }
 
 uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
@@ -586,7 +630,113 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
     return 6;
   }
 
+  //rst VEC: set pc to vc
+  if((ins & block0_8mask) == 0xC7){
+    uint16_t addr = ins & 0x38;
+    push_16(cpu, mem, cpu->PC.val);
+    cpu->PC.val = addr;
+    return 4;
+  }
+
+  //pop r16 stk: pop from the stack and store it in r16
+  if ((ins & block0_16mask) == 0xC1){
+    uint16_t val = pop_16(cpu, mem);
+    set_reg16stk((ins >> 4 & 0b11), cpu, val);
+    return 3;
+  }
+
+  //push r16 stk: push the value in r16 to the stack
+  if ((ins & block0_16mask) == 0xC5){
+    uint16_t val = get_reg16stk((ins >> 4) & 0b11, cpu);
+    push_16(cpu, mem, val);
+    return 4;
+  }
+
+  //CB instruction
+  if(ins == 0xCB){
+    uint8_t steps = cb_instruction();
+    return steps;
+  }
+
+  //ldh [c], a: Copy the value in register A into the byte at address $FF00+C.
+  if(ins == 0xE2){
+    mem_write(mem, 0xFF00 + cpu->BC.lo, cpu->AF.A);
+    return 2;
+  }
+  //ldh [imm8], a: Copy the value in register A into the byte at address $FF00+imm8.
+  if(ins == 0xE0){
+    uint8_t val = get_imm8();
+    mem_write(mem, 0xFF00 + val, cpu->AF.A);
+    return 3;
+  }
+  //ld [imm16], a: Copy the value in register A into the byte at address imm16.
+  if(ins == 0xEA){
+    mem_write(mem, get_imm16(), cpu->AF.A);
+    return 4;
+  }
+
+  //ldh a, [c]: Copy the value in register [FF00 + c] into reg8 A
+  if(ins == 0xF2){
+    uint8_t val = mem_read(mem, 0xFF00 + cpu->BC.lo);
+    cpu->AF.A = val;
+    return 2;
+  }
+  //ldh a, [imm8]: Copy the value in register [FF00 + imm8] into reg8 A
+  if(ins == 0xF0){
+    uint8_t val = mem_read(mem, 0xFF00 + get_imm8());
+    cpu->AF.A = val;
+    return 3;
+  }
+  //ld a, [imm16]: Copy the value in register [imm16] into reg8 A
+  if(ins == 0xFA){
+    uint8_t val = mem_read(mem, get_imm16());
+    cpu->AF.A = val;
+    return 4;
+  }
+
+  //add sp, imm8: add signed value imm8 to sp
+  if(ins == 0xE8){
+    uint8_t e8 = get_imm8();
+    int8_t signed_val = (int8_t)e8;
+    uint16_t sp = cpu->SP.val;
+
+    uint16_t result = sp + signed_val;
+    
+    cpu->SP.val = result;
+    set_flags(cpu, 0, 0, ((((sp ^ e8) ^ result) & 0x10) != 0) ,
+      (((sp ^ e8) ^ result) & 0x100) != 0);
+    return 4;
+  }
+
+  //LD HL,SP+e8: Add the signed value e8 to SP and copy the result in HL.
+  if(ins == 0xF8){
+    uint8_t e8 = get_imm8();
+    int8_t signed_val = (int8_t)e8;
+    uint16_t sp = cpu->SP.val;
+
+    uint16_t result = sp + signed_val;
+    
+    cpu->HL.val = result;
+    set_flags(cpu, 0, 0, ((((sp ^ e8) ^ result) & 0x10) != 0) ,
+      (((sp ^ e8) ^ result) & 0x100) != 0);
+   return 3;
+  }
+  //LD SP,HL Copy register HL into register SP.
+  if (ins == 0xF9){
+    cpu->SP.val = cpu->HL.val;
+    return 2;
+  }
+
+  if(ins == 0xF3){
+    disable_inputs(mem);
+    return 1;
+  }
+  if(ins == 0xFB){
+    enable_inputs(mem);
+    return 1;
+  }
+
+
   printf("ERROR: Invalid Instruction: %02X\n", ins);
   exit(-1);
-  return 0;
 }
