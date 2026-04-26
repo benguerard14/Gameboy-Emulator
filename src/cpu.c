@@ -11,6 +11,27 @@ uint16_t get_imm16() {
   return (fetch_instruction()) + (fetch_instruction() << 8);
 }
 
+void push_16(CPU *cpu, Memory_t *mem, uint16_t val) {
+  cpu->SP.val--;
+  mem_write(mem, cpu->SP.val, val >> 8);
+  cpu->SP.val--;
+  mem_write(mem, cpu->SP.val, val & 0xFF);
+}
+
+uint16_t pop_16(CPU *cpu, Memory_t *mem) {
+  uint16_t val = 0;
+  val |= mem_read(mem, cpu->SP.val);
+  cpu->SP.val++;
+  val |= (mem_read(mem, cpu->SP.val)) << 8;
+  cpu->SP.val++;
+  return val;
+}
+
+void enable_inputs(Memory_t *mem) {
+  // todo:
+  // Do not yet know how to  enable inputs
+}
+
 void set_flags(CPU *cpu, uint8_t Z, uint8_t N, uint8_t H, uint8_t C) {
   cpu->AF.flags.C = C;
   cpu->AF.flags.H = H;
@@ -337,8 +358,9 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
 
   // jr cc, imm8: jump by offsetting if cc
   if ((ins & condition_mask) == 0x20) {
-    if (get_condition((ins >> 3) & 0x3, cpu)) {
-      cpu->PC.val += (int8_t)get_imm8();
+    uint8_t addr = get_imm8();
+    if (get_condition((ins >> 3) & 0b11, cpu)) {
+      cpu->PC.val += addr;
       return 3;
     }
     return 2;
@@ -431,6 +453,137 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
     uint8_t r8 = get_reg8(ins & 0b111, cpu, mem);
     set_flags(cpu, ((a - r8) == 0), 1, (r8 & 0xF) > (a & 0xF), (r8 > a));
     return 1;
+  }
+
+  // BLOCK 3
+  //  add a, imm8: add the value of imm8 to a
+  if (ins == 0xC6) {
+    uint8_t a = cpu->AF.A;
+    uint8_t imm8 = get_imm8();
+    cpu->AF.A += imm8;
+    set_flags(cpu, (cpu->AF.A == 0), 0, (((a & 0xF) + (imm8 & 0xF)) > 0xF),
+              ((uint16_t)a + (uint16_t)imm8) > 0xFF);
+    return 2;
+  }
+  // adc aimm imm8: add the value of imm8 + carry to a
+  if (ins == 0xCE) {
+    uint8_t carry = cpu->AF.flags.C;
+    uint8_t a = cpu->AF.A;
+    uint8_t imm8 = get_imm8();
+    cpu->AF.A = a + imm8 + carry;
+    set_flags(cpu, (cpu->AF.A == 0), 0,
+              (((a & 0xF) + (imm8 & 0xF) + carry) > 0xF),
+              ((uint16_t)a + (uint16_t)imm8 + carry) > 0xFF);
+    return 2;
+  }
+  // sub a, imm8: substract imm8 from a
+  if (ins == 0xD6) {
+    uint8_t a = cpu->AF.A;
+    uint8_t imm8 = get_imm8();
+    cpu->AF.A -= imm8;
+    set_flags(cpu, (cpu->AF.A == 0), 1, (imm8 & 0xF) > (a & 0xF), (imm8 > a));
+    return 2;
+  }
+  // sbc a, imm8: sustract imm8 + carry flag from a
+  if (ins == 0xDE) {
+    uint8_t carry = cpu->AF.flags.C;
+    uint8_t a = cpu->AF.A;
+    uint8_t imm8 = get_imm8();
+    cpu->AF.A -= (imm8 + carry);
+    set_flags(cpu, (cpu->AF.A == 0), 1, ((imm8 & 0xF) + carry) > (a & 0xF),
+              ((imm8 + carry) > a));
+    return 2;
+  }
+  // and a, imm8: set a to imm8 & a
+  if (ins == 0xE6) {
+    cpu->AF.A &= get_imm8();
+    set_flags(cpu, (cpu->AF.A == 0), 0, 1, 0);
+    return 2;
+  }
+  // xor a, imm8: set a to imm8 ^ a
+  if (ins == 0xEE) {
+    cpu->AF.A ^= get_imm8();
+    set_flags(cpu, (cpu->AF.A == 0), 0, 0, 0);
+    return 2;
+  }
+  // or a, imm8: set a to imm8 | a
+  if (ins == 0xF6) {
+    cpu->AF.A |= get_imm8();
+    set_flags(cpu, (cpu->AF.A == 0), 0, 0, 0);
+    return 2;
+  }
+  // cp a, imm8: basically sub but the operation is not performed. only flags
+  if (ins == 0xFE) {
+    uint8_t a = cpu->AF.A;
+    uint8_t imm8 = get_imm8();
+    set_flags(cpu, ((a - imm8) == 0), 1, (imm8 & 0xF) > (a & 0xF), (imm8 > a));
+    return 2;
+  }
+
+  // ret cc, return if cc is met
+  if ((ins & condition_mask) == 0xC0) {
+    if (get_condition((ins >> 3) & 0b11, cpu)) {
+      cpu->PC.val = pop_16(cpu, mem);
+      return 5;
+    }
+    return 2;
+  }
+  // ret: pc = pop16
+  if (ins == 0xC9) {
+    cpu->PC.val = pop_16(cpu, mem);
+    return 4;
+  }
+  // reti: return and then enable inputs
+  if (ins == 0xD9) {
+    cpu->PC.val = pop_16(cpu, mem);
+    enable_inputs(mem);
+    return 4;
+  }
+  // jp cc, imm16: copy imm16 into PC if condition
+  if ((ins & condition_mask) == 0xC2) {
+    uint16_t addr = get_imm16();
+    if (get_condition((ins >> 3) & 0b11, cpu)) {
+      cpu->PC.val = addr;
+      return 4;
+    }
+    return 3;
+  }
+  // jp imm16: unconditionally copy imm16 to PC
+  if (ins == 0xC3) {
+    cpu->PC.val = get_imm16();
+    return 4;
+  }
+  // jp hl: copy value hl in pc
+  if (ins == 0xE9) {
+    cpu->PC.val = cpu->HL.val;
+    return 1;
+  }
+  // call cc, imm16: call addr imm16 if cc. call means subroutine
+  if ((ins & condition_mask) == 0xC4) {
+    uint16_t addr = get_imm16();
+    if (get_condition((ins >> 3) & 0b11, cpu)) {
+      push_16(cpu, mem, cpu->PC.val);
+      cpu->PC.val = addr;
+      return 6;
+    }
+    return 3;
+  }
+  // call cc, imm16: call addr imm16 if cc. call means subroutine
+  if ((ins & condition_mask) == 0xC4) {
+    uint16_t addr = get_imm16();
+    if (get_condition((ins >> 3) & 0b11, cpu)) {
+      push_16(cpu, mem, cpu->PC.val);
+      cpu->PC.val = addr;
+      return 6;
+    }
+    return 3;
+  }
+  // call imm16: call imm16{
+  if (ins == 0xCD) {
+    uint16_t addr = get_imm16();
+    push_16(cpu, mem, cpu->PC.val);
+    cpu->PC.val = addr;
+    return 6;
   }
 
   printf("ERROR: Invalid Instruction: %02X\n", ins);
