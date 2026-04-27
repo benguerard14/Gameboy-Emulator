@@ -216,14 +216,106 @@ uint16_t get_memreg16(uint8_t reg_num, CPU *cpu) {
 uint8_t cb_instruction(uint8_t ins, CPU *cpu, Memory_t *mem) {
   uint8_t adj = 0;
   uint8_t cb_bitmask = 0b11111000;
+  // rlc r8: rotate r8 to the left
   if ((ins & cb_bitmask) == 0x0) {
     uint8_t val = get_reg8(ins & 0b111, cpu, mem, &adj);
     uint8_t carry = (val >> 7) & 0b1;
     uint8_t result = (val << 1) | carry;
-    set_flags(cpu, 0, 0, 0, carry);
+    set_flags(cpu, result == 0, 0, 0, carry);
     set_reg8(ins & 0b111, cpu, mem, result, &adj);
-    return 1 + adj;
+    return 2 + adj;
   }
+  // rrc r8: rotate r8 to the right
+  if ((ins & cb_bitmask) == 0x08) {
+    uint8_t val = get_reg8(ins & 0b111, cpu, mem, &adj);
+    uint8_t carry = val & 0b1;
+    uint8_t result = (val >> 1) | (carry << 7);
+    set_flags(cpu, result == 0, 0, 0, carry);
+    set_reg8(ins & 0b111, cpu, mem, result, &adj);
+    return 2 + adj;
+  }
+  // rl r8: rotate r8 left through the carry flag
+  if ((ins & cb_bitmask) == 0x10) {
+    uint8_t val = get_reg8(ins & 0b111, cpu, mem, &adj);
+    uint8_t carry = (val >> 7) & 0b1;
+    uint8_t result = (val << 1) | cpu->AF.flags.C;
+    set_flags(cpu, result == 0, 0, 0, carry);
+    set_reg8(ins & 0b111, cpu, mem, result, &adj);
+    return 2 + adj;
+  }
+  // rr r8: rotate r8 right through the carry flag
+  if ((ins & cb_bitmask) == 0x18) {
+    uint8_t val = get_reg8(ins & 0b111, cpu, mem, &adj);
+    uint8_t carry = val & 0b1;
+    uint8_t result = (val >> 1) | (cpu->AF.flags.C << 7);
+    set_flags(cpu, result == 0, 0, 0, carry);
+    set_reg8(ins & 0b111, cpu, mem, result, &adj);
+    return 2 + adj;
+  }
+  // sla r8: shift r8 left arithmetically
+  if ((ins & cb_bitmask) == 0x20) {
+    uint8_t val = get_reg8(ins & 0b111, cpu, mem, &adj);
+    uint8_t carry = (val >> 7) & 0b1;
+    uint8_t result = val << 1;
+    set_flags(cpu, result == 0, 0, 0, carry);
+    set_reg8(ins & 0b111, cpu, mem, result, &adj);
+    return 2 + adj;
+  }
+  // sra r8: shift r8 right arithmetically
+  if ((ins & cb_bitmask) == 0x28) {
+    uint8_t val = get_reg8(ins & 0b111, cpu, mem, &adj);
+    uint8_t carry = val & 0b1;
+    uint8_t result = (val >> 1) | (val & 0x80);
+    set_flags(cpu, result == 0, 0, 0, carry);
+    set_reg8(ins & 0b111, cpu, mem, result, &adj);
+    return 2 + adj;
+  }
+  // swap r8: swap upper and lower 4 bits
+  if ((ins & cb_bitmask) == 0x30) {
+    uint8_t val = get_reg8(ins & 0b111, cpu, mem, &adj);
+    uint8_t result = ((val & 0xF) << 4) | (val >> 4);
+    set_flags(cpu, result == 0, 0, 0, 0);
+    set_reg8(ins & 0b111, cpu, mem, result, &adj);
+    return 2 + adj;
+  }
+  // srl r8: shift r8 right logically
+  if ((ins & cb_bitmask) == 0x38) {
+    uint8_t val = get_reg8(ins & 0b111, cpu, mem, &adj);
+    uint8_t carry = val & 0b1;
+    uint8_t result = val >> 1;
+    set_flags(cpu, result == 0, 0, 0, carry);
+    set_reg8(ins & 0b111, cpu, mem, result, &adj);
+    return 2 + adj;
+  }
+
+  // bit b3, r8: Test bit u3 in register r8, set the zero flag if bit not set.
+  uint8_t majoras_mask = 0b11000000;
+  if ((ins & majoras_mask) == 0x40) {
+    uint8_t val = get_reg8(ins & 0b111, cpu, mem, &adj);
+    uint8_t bit = (ins >> 3) & 0b111;
+    uint8_t z = ((val >> bit) & 0b1) == 0;
+    set_flags(cpu, z, 0, 1, cpu->AF.flags.C);
+    return 2 + adj;
+  }
+  // res b3, r8: Set bit u3 in register r8 to 0.
+  if ((ins & majoras_mask) == 0x80) {
+    uint8_t val = get_reg8(ins & 0b111, cpu, mem, &adj);
+    uint8_t bit = (ins >> 3) & 0b111;
+    uint8_t result = val & ~(1 << bit);
+    set_reg8(ins & 0b111, cpu, mem, result, &adj);
+    return 2 + adj;
+  }
+  // set b3, r8: Set bit u3 in register r8 to 1.
+  if ((ins & majoras_mask) == 0xC0) {
+    uint8_t val = get_reg8(ins & 0b111, cpu, mem, &adj);
+    uint8_t bit = (ins >> 3) & 0b111;
+    uint8_t result = val | (1 << bit);
+    set_reg8(ins & 0b111, cpu, mem, result, &adj);
+    return 2 + adj;
+  }
+
+  printf("ERROR: Invalid CB instruction\n");
+  exit(-1);
   return 0;
 }
 
@@ -418,7 +510,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
 
   // jr cc, imm8: jump by offsetting if cc
   if ((ins & condition_mask) == 0x20) {
-    uint8_t addr = get_imm8();
+    int8_t addr = (int8_t)get_imm8();
     if (get_condition((ins >> 3) & 0b11, cpu)) {
       cpu->PC.val += addr;
       return 3;
@@ -713,28 +805,33 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   // add sp, imm8: add signed value imm8 to sp
   if (ins == 0xE8) {
     uint8_t e8 = get_imm8();
-    int8_t signed_val = (int8_t)e8;
+    int8_t offset = (int8_t)e8;
     uint16_t sp = cpu->SP.val;
 
-    uint16_t result = sp + signed_val;
+    uint16_t result = sp + offset;
+    uint8_t h = ((sp & 0xF) + (offset & 0xF)) > 0xF;
+
+    uint8_t c = ((sp & 0xFF) + (uint8_t)offset) > 0xFF;
 
     cpu->SP.val = result;
-    set_flags(cpu, 0, 0, ((((sp ^ e8) ^ result) & 0x10) != 0),
-              (((sp ^ e8) ^ result) & 0x100) != 0);
+    set_flags(cpu, 0, 0, h, c);
     return 4;
   }
 
   // LD HL,SP+e8: Add the signed value e8 to SP and copy the result in HL.
   if (ins == 0xF8) {
     uint8_t e8 = get_imm8();
-    int8_t signed_val = (int8_t)e8;
+    int8_t offset = (int8_t)e8;
     uint16_t sp = cpu->SP.val;
 
-    uint16_t result = sp + signed_val;
+    uint16_t result = sp + offset;
+
+    uint8_t h = ((sp & 0xF) + (offset & 0xF)) > 0xF;
+
+    uint8_t c = ((sp & 0xFF) + (uint8_t)offset) > 0xFF;
 
     cpu->HL.val = result;
-    set_flags(cpu, 0, 0, ((((sp ^ e8) ^ result) & 0x10) != 0),
-              (((sp ^ e8) ^ result) & 0x100) != 0);
+    set_flags(cpu, 0, 0, h, c);
     return 3;
   }
   // LD SP,HL Copy register HL into register SP.
