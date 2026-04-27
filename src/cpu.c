@@ -27,13 +27,13 @@ uint16_t pop_16(CPU *cpu, Memory_t *mem) {
   return val;
 }
 
-void enable_inputs(Memory_t *mem) {
+void enable_interrupts(Memory_t *mem) {
   // todo:
   // Do not yet know how to  enable inputs
-  printf("Enabling inputs\n");
+  printf("Enabling interrupts\n");
 }
-void disable_inputs(Memory_t *mem){
-  //also todo
+void disable_interrupts(Memory_t *mem) {
+  // also todo
   printf("Disabling inputs\n");
 }
 
@@ -61,7 +61,7 @@ uint8_t get_condition(uint8_t condition_num, CPU *cpu) {
   exit(-1);
 }
 
-uint8_t get_reg8(uint8_t reg_num, CPU *cpu, Memory_t *mem) {
+uint8_t get_reg8(uint8_t reg_num, CPU *cpu, Memory_t *mem, uint8_t *adj) {
   switch (reg_num) {
   case 0x0:
     return cpu->BC.hi;
@@ -76,6 +76,7 @@ uint8_t get_reg8(uint8_t reg_num, CPU *cpu, Memory_t *mem) {
   case 0x5:
     return cpu->HL.lo;
   case 0x6:
+    *adj += 1;
     return mem_read(mem, cpu->HL.val);
   case 0x7:
     // GET A
@@ -86,7 +87,8 @@ uint8_t get_reg8(uint8_t reg_num, CPU *cpu, Memory_t *mem) {
   }
 }
 
-void set_reg8(uint8_t reg_num, CPU *cpu, Memory_t *mem, uint8_t val) {
+void set_reg8(uint8_t reg_num, CPU *cpu, Memory_t *mem, uint8_t val,
+              uint8_t *adj) {
   switch (reg_num) {
   case 0x0:
     cpu->BC.hi = val;
@@ -108,6 +110,7 @@ void set_reg8(uint8_t reg_num, CPU *cpu, Memory_t *mem, uint8_t val) {
     break;
   case 0x6:
     mem_write(mem, cpu->HL.val, val);
+    *adj += 1;
     break;
   case 0x7:
     // GET A
@@ -210,7 +213,17 @@ uint16_t get_memreg16(uint8_t reg_num, CPU *cpu) {
   }
 }
 
-uint8_t cb_instruction(){
+uint8_t cb_instruction(uint8_t ins, CPU *cpu, Memory_t *mem) {
+  uint8_t adj = 0;
+  uint8_t cb_bitmask = 0b11111000;
+  if ((ins & cb_bitmask) == 0x0) {
+    uint8_t val = get_reg8(ins & 0b111, cpu, mem, &adj);
+    uint8_t carry = (val >> 7) & 0b1;
+    uint8_t result = (val << 1) | carry;
+    set_flags(cpu, 0, 0, 0, carry);
+    set_reg8(ins & 0b111, cpu, mem, result, &adj);
+    return 1 + adj;
+  }
   return 0;
 }
 
@@ -277,26 +290,29 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
 
   // inc r8
   if ((ins & block0_8mask) == 0x4) {
-    uint8_t val = get_reg8(block0_8sel, cpu, mem);
+    uint8_t adj = 0;
+    uint8_t val = get_reg8(block0_8sel, cpu, mem, &adj);
     uint8_t result = val + 1;
-    set_reg8(block0_8sel, cpu, mem, result);
+    set_reg8(block0_8sel, cpu, mem, result, &adj);
     set_flags(cpu, (result) == 0, 0, (val & 0x0F) == 0x0F, cpu->AF.flags.C);
-    return 1;
+    return 1 + adj;
   }
   // dec r8
   if ((ins & block0_8mask) == 0x5) {
-    uint8_t val = get_reg8(block0_8sel, cpu, mem);
+    uint8_t adj = 0;
+    uint8_t val = get_reg8(block0_8sel, cpu, mem, &adj);
     uint8_t result = val - 1;
-    set_reg8(block0_8sel, cpu, mem, result);
+    set_reg8(block0_8sel, cpu, mem, result, &adj);
     set_flags(cpu, (result) == 0, 1, (val & 0x0F) == 0x0, cpu->AF.flags.C);
-    return 1;
+    return 1 + adj;
   }
 
   // ld r8, n8
   if ((ins & block0_8mask) == 0x6) {
+    uint8_t adj = 0;
     uint8_t val = get_imm8();
-    set_reg8(block0_8sel, cpu, mem, val);
-    return 2;
+    set_reg8(block0_8sel, cpu, mem, val, &adj);
+    return 2 + adj;
   }
 
   // rlca: rotate register A left
@@ -428,75 +444,84 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   }
   // ld r8, r8
   if ((ins & reg_mask) == 0x40) {
-    uint8_t val = get_reg8(ins & 0b111, cpu, mem);
-    set_reg8((ins >> 3) & 0b111, cpu, mem, val);
-    return 1;
+    uint8_t adj = 0;
+    uint8_t val = get_reg8(ins & 0b111, cpu, mem, &adj);
+    set_reg8((ins >> 3) & 0b111, cpu, mem, val, &adj);
+    return 1 + adj;
   }
 
   // BLOCK 2
   uint8_t arithmetic_block = 0b11111000;
   // add a, r8: add the value of r8 to a
   if ((ins & arithmetic_block) == 0x80) {
+    uint8_t adj = 0;
     uint8_t a = cpu->AF.A;
-    uint8_t r8 = get_reg8(ins & 0b111, cpu, mem);
+    uint8_t r8 = get_reg8(ins & 0b111, cpu, mem, &adj);
     cpu->AF.A += r8;
     set_flags(cpu, (cpu->AF.A == 0), 0, (((a & 0xF) + (r8 & 0xF)) > 0xF),
               ((uint16_t)a + (uint16_t)r8) > 0xFF);
-    return 1;
+    return 1 + adj;
   }
   // adc a, r8: add the value of r8 + carry to a
   if ((ins & arithmetic_block) == 0x88) {
+    uint8_t adj = 0;
     uint8_t carry = cpu->AF.flags.C;
     uint8_t a = cpu->AF.A;
-    uint8_t r8 = get_reg8(ins & 0b111, cpu, mem);
+    uint8_t r8 = get_reg8(ins & 0b111, cpu, mem, &adj);
     cpu->AF.A = a + r8 + carry;
     set_flags(cpu, (cpu->AF.A == 0), 0,
               (((a & 0xF) + (r8 & 0xF) + carry) > 0xF),
               ((uint16_t)a + (uint16_t)r8 + carry) > 0xFF);
-    return 1;
+    return 1 + adj;
   }
   // sub a, r8: substract r8 from a
   if ((ins & arithmetic_block) == 0x90) {
+    uint8_t adj = 0;
     uint8_t a = cpu->AF.A;
-    uint8_t r8 = get_reg8(ins & 0b111, cpu, mem);
+    uint8_t r8 = get_reg8(ins & 0b111, cpu, mem, &adj);
     cpu->AF.A -= r8;
     set_flags(cpu, (cpu->AF.A == 0), 1, (r8 & 0xF) > (a & 0xF), (r8 > a));
-    return 1;
+    return 1 + adj;
   }
   // sbc a, r8: sustract r8 + carry flag from a
   if ((ins & arithmetic_block) == 0x98) {
+    uint8_t adj = 0;
     uint8_t carry = cpu->AF.flags.C;
     uint8_t a = cpu->AF.A;
-    uint8_t r8 = get_reg8(ins & 0b111, cpu, mem);
+    uint8_t r8 = get_reg8(ins & 0b111, cpu, mem, &adj);
     cpu->AF.A -= (r8 + carry);
     set_flags(cpu, (cpu->AF.A == 0), 1, ((r8 & 0xF) + carry) > (a & 0xF),
               ((r8 + carry) > a));
-    return 1;
+    return 1 + adj;
   }
   // and a, r8: set a to r8 & a
   if ((ins & arithmetic_block) == 0xA0) {
-    cpu->AF.A &= get_reg8(ins & 0b111, cpu, mem);
+    uint8_t adj = 0;
+    cpu->AF.A &= get_reg8(ins & 0b111, cpu, mem, &adj);
     set_flags(cpu, (cpu->AF.A == 0), 0, 1, 0);
-    return 1;
+    return 1 + adj;
   }
   // xor a, r8: set a to r8 ^ a
   if ((ins & arithmetic_block) == 0xA8) {
-    cpu->AF.A ^= get_reg8(ins & 0b111, cpu, mem);
+    uint8_t adj = 0;
+    cpu->AF.A ^= get_reg8(ins & 0b111, cpu, mem, &adj);
     set_flags(cpu, (cpu->AF.A == 0), 0, 0, 0);
-    return 1;
+    return 1 + adj;
   }
   // or a, r8: set a to r8 | a
   if ((ins & arithmetic_block) == 0xB0) {
-    cpu->AF.A |= get_reg8(ins & 0b111, cpu, mem);
+    uint8_t adj = 0;
+    cpu->AF.A |= get_reg8(ins & 0b111, cpu, mem, &adj);
     set_flags(cpu, (cpu->AF.A == 0), 0, 0, 0);
-    return 1;
+    return 1 + adj;
   }
   // cp a, r8: basically sub but the operation is not performed. only flags
   if ((ins & arithmetic_block) == 0xB8) {
+    uint8_t adj = 0;
     uint8_t a = cpu->AF.A;
-    uint8_t r8 = get_reg8(ins & 0b111, cpu, mem);
+    uint8_t r8 = get_reg8(ins & 0b111, cpu, mem, &adj);
     set_flags(cpu, ((a - r8) == 0), 1, (r8 & 0xF) > (a & 0xF), (r8 > a));
-    return 1;
+    return 1 + adj;
   }
 
   // BLOCK 3
@@ -580,7 +605,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   // reti: return and then enable inputs
   if (ins == 0xD9) {
     cpu->PC.val = pop_16(cpu, mem);
-    enable_inputs(mem);
+    enable_interrupts(mem);
     return 4;
   }
   // jp cc, imm16: copy imm16 into PC if condition
@@ -612,16 +637,6 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
     }
     return 3;
   }
-  // call cc, imm16: call addr imm16 if cc. call means subroutine
-  if ((ins & condition_mask) == 0xC4) {
-    uint16_t addr = get_imm16();
-    if (get_condition((ins >> 3) & 0b11, cpu)) {
-      push_16(cpu, mem, cpu->PC.val);
-      cpu->PC.val = addr;
-      return 6;
-    }
-    return 3;
-  }
   // call imm16: call imm16{
   if (ins == 0xCD) {
     uint16_t addr = get_imm16();
@@ -630,112 +645,112 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
     return 6;
   }
 
-  //rst VEC: set pc to vc
-  if((ins & block0_8mask) == 0xC7){
+  // rst VEC: set pc to vc
+  if ((ins & block0_8mask) == 0xC7) {
     uint16_t addr = ins & 0x38;
     push_16(cpu, mem, cpu->PC.val);
     cpu->PC.val = addr;
     return 4;
   }
 
-  //pop r16 stk: pop from the stack and store it in r16
-  if ((ins & block0_16mask) == 0xC1){
+  // pop r16 stk: pop from the stack and store it in r16
+  if ((ins & block0_16mask) == 0xC1) {
     uint16_t val = pop_16(cpu, mem);
     set_reg16stk((ins >> 4 & 0b11), cpu, val);
     return 3;
   }
 
-  //push r16 stk: push the value in r16 to the stack
-  if ((ins & block0_16mask) == 0xC5){
+  // push r16 stk: push the value in r16 to the stack
+  if ((ins & block0_16mask) == 0xC5) {
     uint16_t val = get_reg16stk((ins >> 4) & 0b11, cpu);
     push_16(cpu, mem, val);
     return 4;
   }
 
-  //CB instruction
-  if(ins == 0xCB){
-    uint8_t steps = cb_instruction();
+  // CB instruction
+  if (ins == 0xCB) {
+    uint8_t steps = cb_instruction(get_imm8(), cpu, mem);
     return steps;
   }
 
-  //ldh [c], a: Copy the value in register A into the byte at address $FF00+C.
-  if(ins == 0xE2){
+  // ldh [c], a: Copy the value in register A into the byte at address $FF00+C.
+  if (ins == 0xE2) {
     mem_write(mem, 0xFF00 + cpu->BC.lo, cpu->AF.A);
     return 2;
   }
-  //ldh [imm8], a: Copy the value in register A into the byte at address $FF00+imm8.
-  if(ins == 0xE0){
+  // ldh [imm8], a: Copy the value in register A into the byte at address
+  // $FF00+imm8.
+  if (ins == 0xE0) {
     uint8_t val = get_imm8();
     mem_write(mem, 0xFF00 + val, cpu->AF.A);
     return 3;
   }
-  //ld [imm16], a: Copy the value in register A into the byte at address imm16.
-  if(ins == 0xEA){
+  // ld [imm16], a: Copy the value in register A into the byte at address imm16.
+  if (ins == 0xEA) {
     mem_write(mem, get_imm16(), cpu->AF.A);
     return 4;
   }
 
-  //ldh a, [c]: Copy the value in register [FF00 + c] into reg8 A
-  if(ins == 0xF2){
+  // ldh a, [c]: Copy the value in register [FF00 + c] into reg8 A
+  if (ins == 0xF2) {
     uint8_t val = mem_read(mem, 0xFF00 + cpu->BC.lo);
     cpu->AF.A = val;
     return 2;
   }
-  //ldh a, [imm8]: Copy the value in register [FF00 + imm8] into reg8 A
-  if(ins == 0xF0){
+  // ldh a, [imm8]: Copy the value in register [FF00 + imm8] into reg8 A
+  if (ins == 0xF0) {
     uint8_t val = mem_read(mem, 0xFF00 + get_imm8());
     cpu->AF.A = val;
     return 3;
   }
-  //ld a, [imm16]: Copy the value in register [imm16] into reg8 A
-  if(ins == 0xFA){
+  // ld a, [imm16]: Copy the value in register [imm16] into reg8 A
+  if (ins == 0xFA) {
     uint8_t val = mem_read(mem, get_imm16());
     cpu->AF.A = val;
     return 4;
   }
 
-  //add sp, imm8: add signed value imm8 to sp
-  if(ins == 0xE8){
+  // add sp, imm8: add signed value imm8 to sp
+  if (ins == 0xE8) {
     uint8_t e8 = get_imm8();
     int8_t signed_val = (int8_t)e8;
     uint16_t sp = cpu->SP.val;
 
     uint16_t result = sp + signed_val;
-    
+
     cpu->SP.val = result;
-    set_flags(cpu, 0, 0, ((((sp ^ e8) ^ result) & 0x10) != 0) ,
-      (((sp ^ e8) ^ result) & 0x100) != 0);
+    set_flags(cpu, 0, 0, ((((sp ^ e8) ^ result) & 0x10) != 0),
+              (((sp ^ e8) ^ result) & 0x100) != 0);
     return 4;
   }
 
-  //LD HL,SP+e8: Add the signed value e8 to SP and copy the result in HL.
-  if(ins == 0xF8){
+  // LD HL,SP+e8: Add the signed value e8 to SP and copy the result in HL.
+  if (ins == 0xF8) {
     uint8_t e8 = get_imm8();
     int8_t signed_val = (int8_t)e8;
     uint16_t sp = cpu->SP.val;
 
     uint16_t result = sp + signed_val;
-    
+
     cpu->HL.val = result;
-    set_flags(cpu, 0, 0, ((((sp ^ e8) ^ result) & 0x10) != 0) ,
-      (((sp ^ e8) ^ result) & 0x100) != 0);
-   return 3;
+    set_flags(cpu, 0, 0, ((((sp ^ e8) ^ result) & 0x10) != 0),
+              (((sp ^ e8) ^ result) & 0x100) != 0);
+    return 3;
   }
-  //LD SP,HL Copy register HL into register SP.
-  if (ins == 0xF9){
+  // LD SP,HL Copy register HL into register SP.
+  if (ins == 0xF9) {
     cpu->SP.val = cpu->HL.val;
     return 2;
   }
 
-  if(ins == 0xF3){
-    disable_inputs(mem);
+  if (ins == 0xF3) {
+    disable_interrupts(mem);
     return 1;
   }
-  if(ins == 0xFB){
-    enable_inputs(mem);
+  if (ins == 0xFB) {
+    enable_interrupts(mem);
     return 1;
   }
-
 
   printf("ERROR: Invalid Instruction: %02X\n", ins);
   exit(-1);
