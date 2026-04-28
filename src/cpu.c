@@ -1,14 +1,22 @@
 #include "cpu.h"
-#include "gameboy.h"
-#include "util.h"
+#include "mmu.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-uint8_t get_imm8() { return fetch_instruction(); }
+uint8_t fetch_instruction(CPU *cpu, Memory_t *mem) {
+  uint8_t ins;
+  ins = mem_read(mem, cpu->PC.val);
+  cpu->PC.val++;
+  return ins;
+}
 
-uint16_t get_imm16() {
-  return (fetch_instruction()) + (fetch_instruction() << 8);
+uint8_t get_imm8(CPU *cpu, Memory_t *mem) {
+  return fetch_instruction(cpu, mem);
+}
+
+uint16_t get_imm16(CPU *cpu, Memory_t *mem) {
+  return (fetch_instruction(cpu, mem)) + (fetch_instruction(cpu, mem) << 8);
 }
 
 void push_16(CPU *cpu, Memory_t *mem, uint16_t val) {
@@ -332,7 +340,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   uint8_t condition_mask = 0b11100111;
   // ld r16, imm16
   if ((ins & block0_16mask) == 0x1) {
-    uint16_t val = get_imm16();
+    uint16_t val = get_imm16(cpu, mem);
     set_reg16(block0_16sel, cpu, val);
     return 3;
   }
@@ -351,7 +359,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   }
   // ld [imm16], sp
   if (ins == 0x8) {
-    uint16_t addr = get_imm16();
+    uint16_t addr = get_imm16(cpu, mem);
     mem_write(mem, addr, cpu->SP.lo);
     mem_write(mem, addr + 1, cpu->SP.hi);
     return 5;
@@ -402,7 +410,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   // ld r8, n8
   if ((ins & block0_8mask) == 0x6) {
     uint8_t adj = 0;
-    uint8_t val = get_imm8();
+    uint8_t val = get_imm8(cpu, mem);
     set_reg8(block0_8sel, cpu, mem, val, &adj);
     return 2 + adj;
   }
@@ -504,13 +512,13 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
 
   // jr imm8: jump by offsetting with imm8
   if (ins == 0x18) {
-    cpu->PC.val += (int8_t)get_imm8();
+    cpu->PC.val += (int8_t)get_imm8(cpu, mem);
     return 3;
   }
 
   // jr cc, imm8: jump by offsetting if cc
   if ((ins & condition_mask) == 0x20) {
-    int8_t addr = (int8_t)get_imm8();
+    int8_t addr = (int8_t)get_imm8(cpu, mem);
     if (get_condition((ins >> 3) & 0b11, cpu)) {
       cpu->PC.val += addr;
       return 3;
@@ -520,7 +528,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
 
   // stop: no idea but looks even worse than halt
   if (ins == 0x10) {
-    get_imm8();
+    get_imm8(cpu, mem);
 
     printf("Stop instruction. No idea what to do\n");
 
@@ -620,7 +628,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   //  add a, imm8: add the value of imm8 to a
   if (ins == 0xC6) {
     uint8_t a = cpu->AF.A;
-    uint8_t imm8 = get_imm8();
+    uint8_t imm8 = get_imm8(cpu, mem);
     cpu->AF.A += imm8;
     set_flags(cpu, (cpu->AF.A == 0), 0, (((a & 0xF) + (imm8 & 0xF)) > 0xF),
               ((uint16_t)a + (uint16_t)imm8) > 0xFF);
@@ -630,7 +638,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   if (ins == 0xCE) {
     uint8_t carry = cpu->AF.flags.C;
     uint8_t a = cpu->AF.A;
-    uint8_t imm8 = get_imm8();
+    uint8_t imm8 = get_imm8(cpu, mem);
     cpu->AF.A = a + imm8 + carry;
     set_flags(cpu, (cpu->AF.A == 0), 0,
               (((a & 0xF) + (imm8 & 0xF) + carry) > 0xF),
@@ -640,7 +648,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   // sub a, imm8: substract imm8 from a
   if (ins == 0xD6) {
     uint8_t a = cpu->AF.A;
-    uint8_t imm8 = get_imm8();
+    uint8_t imm8 = get_imm8(cpu, mem);
     cpu->AF.A -= imm8;
     set_flags(cpu, (cpu->AF.A == 0), 1, (imm8 & 0xF) > (a & 0xF), (imm8 > a));
     return 2;
@@ -649,7 +657,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   if (ins == 0xDE) {
     uint8_t carry = cpu->AF.flags.C;
     uint8_t a = cpu->AF.A;
-    uint8_t imm8 = get_imm8();
+    uint8_t imm8 = get_imm8(cpu, mem);
     cpu->AF.A -= (imm8 + carry);
     set_flags(cpu, (cpu->AF.A == 0), 1, ((imm8 & 0xF) + carry) > (a & 0xF),
               ((imm8 + carry) > a));
@@ -657,26 +665,26 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   }
   // and a, imm8: set a to imm8 & a
   if (ins == 0xE6) {
-    cpu->AF.A &= get_imm8();
+    cpu->AF.A &= get_imm8(cpu, mem);
     set_flags(cpu, (cpu->AF.A == 0), 0, 1, 0);
     return 2;
   }
   // xor a, imm8: set a to imm8 ^ a
   if (ins == 0xEE) {
-    cpu->AF.A ^= get_imm8();
+    cpu->AF.A ^= get_imm8(cpu, mem);
     set_flags(cpu, (cpu->AF.A == 0), 0, 0, 0);
     return 2;
   }
   // or a, imm8: set a to imm8 | a
   if (ins == 0xF6) {
-    cpu->AF.A |= get_imm8();
+    cpu->AF.A |= get_imm8(cpu, mem);
     set_flags(cpu, (cpu->AF.A == 0), 0, 0, 0);
     return 2;
   }
   // cp a, imm8: basically sub but the operation is not performed. only flags
   if (ins == 0xFE) {
     uint8_t a = cpu->AF.A;
-    uint8_t imm8 = get_imm8();
+    uint8_t imm8 = get_imm8(cpu, mem);
     set_flags(cpu, ((a - imm8) == 0), 1, (imm8 & 0xF) > (a & 0xF), (imm8 > a));
     return 2;
   }
@@ -702,7 +710,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   }
   // jp cc, imm16: copy imm16 into PC if condition
   if ((ins & condition_mask) == 0xC2) {
-    uint16_t addr = get_imm16();
+    uint16_t addr = get_imm16(cpu, mem);
     if (get_condition((ins >> 3) & 0b11, cpu)) {
       cpu->PC.val = addr;
       return 4;
@@ -711,7 +719,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   }
   // jp imm16: unconditionally copy imm16 to PC
   if (ins == 0xC3) {
-    cpu->PC.val = get_imm16();
+    cpu->PC.val = get_imm16(cpu, mem);
     return 4;
   }
   // jp hl: copy value hl in pc
@@ -721,7 +729,8 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   }
   // call cc, imm16: call addr imm16 if cc. call means subroutine
   if ((ins & condition_mask) == 0xC4) {
-    uint16_t addr = get_imm16();
+    uint16_t addr = get_imm16(cpu, mem);
+    printf("Hello\n");
     if (get_condition((ins >> 3) & 0b11, cpu)) {
       push_16(cpu, mem, cpu->PC.val);
       cpu->PC.val = addr;
@@ -731,9 +740,10 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   }
   // call imm16: call imm16{
   if (ins == 0xCD) {
-    uint16_t addr = get_imm16();
+    uint16_t addr = get_imm16(cpu, mem);
     push_16(cpu, mem, cpu->PC.val);
     cpu->PC.val = addr;
+    printf("%d\n", addr);
     return 6;
   }
 
@@ -761,7 +771,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
 
   // CB instruction
   if (ins == 0xCB) {
-    uint8_t steps = cb_instruction(get_imm8(), cpu, mem);
+    uint8_t steps = cb_instruction(get_imm8(cpu, mem), cpu, mem);
     return steps;
   }
 
@@ -773,13 +783,13 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   // ldh [imm8], a: Copy the value in register A into the byte at address
   // $FF00+imm8.
   if (ins == 0xE0) {
-    uint8_t val = get_imm8();
+    uint8_t val = get_imm8(cpu, mem);
     mem_write(mem, 0xFF00 + val, cpu->AF.A);
     return 3;
   }
   // ld [imm16], a: Copy the value in register A into the byte at address imm16.
   if (ins == 0xEA) {
-    mem_write(mem, get_imm16(), cpu->AF.A);
+    mem_write(mem, get_imm16(cpu, mem), cpu->AF.A);
     return 4;
   }
 
@@ -791,20 +801,20 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   }
   // ldh a, [imm8]: Copy the value in register [FF00 + imm8] into reg8 A
   if (ins == 0xF0) {
-    uint8_t val = mem_read(mem, 0xFF00 + get_imm8());
+    uint8_t val = mem_read(mem, 0xFF00 + get_imm8(cpu, mem));
     cpu->AF.A = val;
     return 3;
   }
   // ld a, [imm16]: Copy the value in register [imm16] into reg8 A
   if (ins == 0xFA) {
-    uint8_t val = mem_read(mem, get_imm16());
+    uint8_t val = mem_read(mem, get_imm16(cpu, mem));
     cpu->AF.A = val;
     return 4;
   }
 
   // add sp, imm8: add signed value imm8 to sp
   if (ins == 0xE8) {
-    uint8_t e8 = get_imm8();
+    uint8_t e8 = get_imm8(cpu, mem);
     int8_t offset = (int8_t)e8;
     uint16_t sp = cpu->SP.val;
 
@@ -820,7 +830,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
 
   // LD HL,SP+e8: Add the signed value e8 to SP and copy the result in HL.
   if (ins == 0xF8) {
-    uint8_t e8 = get_imm8();
+    uint8_t e8 = get_imm8(cpu, mem);
     int8_t offset = (int8_t)e8;
     uint16_t sp = cpu->SP.val;
 

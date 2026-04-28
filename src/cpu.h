@@ -1,7 +1,7 @@
 #ifndef CPU_H
 #define CPU_H
 
-#include "gameboy.h"
+#include "mmu.h"
 #include <stdint.h>
 
 typedef union {
@@ -38,5 +38,6 @@ typedef struct {
 } CPU;
 
 uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem);
+uint8_t fetch_instruction(CPU *cpu, Memory_t *mem);
 
 #endif

@@ -1,17 +1,9 @@
 #include "gameboy.h"
-#include "cpu.h"
-#include "util.h"
+#include "mmu.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-typedef struct {
-  Memory_t mem;
-  CPU cpu;
-} Gameboy;
-
-Gameboy gb;
 
 uint8_t *pixels_from_tile(uint8_t tile[16]) {
   uint8_t *pixels = malloc(64 * sizeof(uint8_t));
@@ -60,19 +52,13 @@ char *get_string_file(char *file, size_t *out_size) {
   return buff;
 }
 
-void emulator_init(char *rom, size_t size) {
-  memcpy(&gb.mem.rom_bank_0, (rom + 4), size);
-  gb.cpu.PC.val = 0x0100;
-  gb.cpu.SP.val = 0xFFFE;
-  gb.cpu.AF.AF = 0x01B0;
-  gb.cpu.BC.val = 0x0013;
-  gb.cpu.DE.val = 0x00D8;
-  gb.cpu.HL.val = 0x014D;
-}
-
-uint8_t fetch_instruction() {
-  uint8_t ins;
-  ins = mem_read(&gb.mem, gb.cpu.PC.val);
-  gb.cpu.PC.val++;
-  return ins;
+void emulator_init(Gameboy *gb, char *rom, size_t size) {
+  // mmcpy to be changed
+  memcpy(&gb->mem.rom_bank_0, (rom + 4), size);
+  gb->cpu.PC.val = 0x0100;
+  gb->cpu.SP.val = 0xFFFE;
+  gb->cpu.AF.AF = 0x01B0;
+  gb->cpu.BC.val = 0x0013;
+  gb->cpu.DE.val = 0x00D8;
+  gb->cpu.HL.val = 0x014D;
 }
