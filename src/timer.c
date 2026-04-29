@@ -1,5 +1,6 @@
 #include "timer.h"
 #include "mmu.h"
+#include <stdio.h>
 #include <stdint.h>
 
 #define TIMER_CONTROL_ADDR 0xFF07

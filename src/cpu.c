@@ -223,10 +223,15 @@ uint8_t interrupt_handle(CPU *cpu, Memory_t *mem){
   uint8_t IE = mem_read(mem, 0XFFFF);
   uint8_t IF = mem_read(mem, 0xFF0F);
   uint8_t pending = IE & IF;
+  
+  if(pending){
+    cpu->halted = 0;
+  }
+
   if (!pending || !cpu->IME) {
     return 0;
   }
-
+  
   uint16_t addr;
   uint8_t bits;
   if(pending & 0b1){
@@ -571,7 +576,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   // stop: no idea but looks even worse than halt
   if (ins == 0x10) {
     get_imm8(cpu, mem);
-    cpu->halted = 1;
+    //cpu->halted = 1;
     // printf("Stop instruction. No idea what to do\n");
 
     return 2;
@@ -581,8 +586,9 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   uint8_t reg_mask = 0b11000000;
   //  halt: absolutely no idea what it does and hope i don't have to find out
   if (ins == 0x76) {
+    cpu->halted = 1;
     // printf("Halt instruction. No idea what to do\n");
-    return 2;
+    return 1;
   }
   // ld r8, r8
   if ((ins & reg_mask) == 0x40) {

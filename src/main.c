@@ -19,10 +19,16 @@ void loop() {
         return;
       }
     }
+    uint8_t cycles;
     interrupt_handle(&gb.cpu, &gb.mem);
-    uint8_t ins = fetch_instruction(&gb.cpu, &gb.mem);
+    if(!(gb.cpu.halted)){
+      uint8_t ins = fetch_instruction(&gb.cpu, &gb.mem);
+      cycles = cpu_step(ins, &gb.cpu, &gb.mem);
+    }
+    else{
+      cycles = 1;
+    }
     // printf("%02X\n", ins);
-    uint8_t cycles = cpu_step(ins, &gb.cpu, &gb.mem);
     timer_step(&gb.cpu, &gb.mem, cycles);
   }
   // free(pixels);
@@ -31,7 +37,7 @@ void loop() {
 int main() {
   graphics_init();
   size_t size;
-  char *rom = get_string_file("roms/cputests/02-interrupts.gb", &size);
+  char *rom = get_string_file("roms/cpu_instrs.gb", &size);
   emulator_init(&gb, rom, size);
   free(rom);
 
