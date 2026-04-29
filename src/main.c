@@ -18,6 +18,7 @@ void loop() {
         return;
       }
     }
+    interrupt_handle(&gb.cpu, &gb.mem);
     uint8_t ins = fetch_instruction(&gb.cpu, &gb.mem);
     // printf("%02X\n", ins);
     cpu_step(ins, &gb.cpu, &gb.mem);

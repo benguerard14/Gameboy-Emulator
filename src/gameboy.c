@@ -61,4 +61,5 @@ void emulator_init(Gameboy *gb, char *rom, size_t size) {
   gb->cpu.BC.val = 0x0013;
   gb->cpu.DE.val = 0x00D8;
   gb->cpu.HL.val = 0x014D;
+  gb->cpu.IME = 0;
 }

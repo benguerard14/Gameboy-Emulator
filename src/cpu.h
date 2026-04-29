@@ -35,9 +35,13 @@ typedef struct {
   reg16 HL;
   reg16 SP;
   reg16 PC;
+  uint8_t IME;
+  uint8_t IME_next;
+  uint8_t halted;
 } CPU;
 
 uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem);
 uint8_t fetch_instruction(CPU *cpu, Memory_t *mem);
+uint8_t interrupt_handle(CPU *cpu, Memory_t *mem);
 
 #endif
