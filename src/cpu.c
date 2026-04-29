@@ -35,15 +35,8 @@ uint16_t pop_16(CPU *cpu, Memory_t *mem) {
   return val;
 }
 
-void enable_interrupts(Memory_t *mem) {
-  // todo:
-  // Do not yet know how to  enable inputs
-  printf("Enabling interrupts\n");
-}
-void disable_interrupts(Memory_t *mem) {
-  // also todo
-  printf("Disabling inputs\n");
-}
+void enable_interrupts(Memory_t *mem) { mem->interrupt_enable = 1; }
+void disable_interrupts(Memory_t *mem) { mem->interrupt_enable = 0; }
 
 void set_flags(CPU *cpu, uint8_t Z, uint8_t N, uint8_t H, uint8_t C) {
   cpu->AF.flags.C = C;
@@ -530,7 +523,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   if (ins == 0x10) {
     get_imm8(cpu, mem);
 
-    printf("Stop instruction. No idea what to do\n");
+    // printf("Stop instruction. No idea what to do\n");
 
     return 2;
   }
@@ -539,7 +532,7 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   uint8_t reg_mask = 0b11000000;
   //  halt: absolutely no idea what it does and hope i don't have to find out
   if (ins == 0x76) {
-    printf("Halt instruction. No idea what to do\n");
+    // printf("Halt instruction. No idea what to do\n");
     return 2;
   }
   // ld r8, r8
@@ -589,9 +582,10 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
     uint8_t carry = cpu->AF.flags.C;
     uint8_t a = cpu->AF.A;
     uint8_t r8 = get_reg8(ins & 0b111, cpu, mem, &adj);
-    cpu->AF.A -= (r8 + carry);
-    set_flags(cpu, (cpu->AF.A == 0), 1, ((r8 & 0xF) + carry) > (a & 0xF),
-              ((r8 + carry) > a));
+    uint16_t full = (uint16_t)a - (uint16_t)r8 - carry;
+    cpu->AF.A = (uint8_t)full;
+    set_flags(cpu, (cpu->AF.A == 0), 1,
+              ((int)(a & 0xF) - (int)(r8 & 0xF) - carry) < 0, full > 0xFF);
     return 1 + adj;
   }
   // and a, r8: set a to r8 & a
@@ -658,9 +652,10 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
     uint8_t carry = cpu->AF.flags.C;
     uint8_t a = cpu->AF.A;
     uint8_t imm8 = get_imm8(cpu, mem);
-    cpu->AF.A -= (imm8 + carry);
-    set_flags(cpu, (cpu->AF.A == 0), 1, ((imm8 & 0xF) + carry) > (a & 0xF),
-              ((imm8 + carry) > a));
+    uint16_t full = (uint16_t)a - (uint16_t)imm8 - carry;
+    cpu->AF.A = (uint8_t)full;
+    set_flags(cpu, (cpu->AF.A == 0), 1,
+              ((int)(a & 0xF) - (int)(imm8 & 0xF) - carry) < 0, full > 0xFF);
     return 2;
   }
   // and a, imm8: set a to imm8 & a
@@ -730,7 +725,6 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   // call cc, imm16: call addr imm16 if cc. call means subroutine
   if ((ins & condition_mask) == 0xC4) {
     uint16_t addr = get_imm16(cpu, mem);
-    printf("Hello\n");
     if (get_condition((ins >> 3) & 0b11, cpu)) {
       push_16(cpu, mem, cpu->PC.val);
       cpu->PC.val = addr;
@@ -743,7 +737,6 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
     uint16_t addr = get_imm16(cpu, mem);
     push_16(cpu, mem, cpu->PC.val);
     cpu->PC.val = addr;
-    printf("%d\n", addr);
     return 6;
   }
 

@@ -19,7 +19,7 @@ void loop() {
       }
     }
     uint8_t ins = fetch_instruction(&gb.cpu, &gb.mem);
-    printf("%02X\n", ins);
+    // printf("%02X\n", ins);
     cpu_step(ins, &gb.cpu, &gb.mem);
   }
   // free(pixels);
@@ -28,7 +28,7 @@ void loop() {
 int main() {
   graphics_init();
   size_t size;
-  char *rom = get_string_file("roms/cpu_instrs.gb", &size);
+  char *rom = get_string_file("roms/cputests/02-interrupts.gb", &size);
   emulator_init(&gb, rom, size);
   free(rom);
 

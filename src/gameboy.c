@@ -54,7 +54,7 @@ char *get_string_file(char *file, size_t *out_size) {
 
 void emulator_init(Gameboy *gb, char *rom, size_t size) {
   // mmcpy to be changed
-  memcpy(&gb->mem.rom_bank_0, (rom + 4), size);
+  memcpy(&gb->mem.rom_bank_0, rom, size);
   gb->cpu.PC.val = 0x0100;
   gb->cpu.SP.val = 0xFFFE;
   gb->cpu.AF.AF = 0x01B0;
