@@ -38,6 +38,8 @@ typedef struct {
   uint8_t IME;
   uint8_t IME_next;
   uint8_t halted;
+  uint32_t div_ticks;
+  uint32_t tima_ticks;
 } CPU;
 
 uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem);

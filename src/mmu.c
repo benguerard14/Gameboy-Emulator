@@ -48,6 +48,9 @@ void mem_write(Memory_t *mem, uint16_t addr, uint8_t val) {
         mem->ioregs[0x02] &= 0x7F;
       }
     }
+    else if(addr == 0xFF04){
+      mem->ioregs[addr - 0xFF00] = 0;
+    }
     return;
   }
 

@@ -1,6 +1,7 @@
 #include "cpu.h"
 #include "gameboy.h"
 #include "graphics.h"
+#include "timer.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_events.h>
 #include <stdint.h>
@@ -21,7 +22,8 @@ void loop() {
     interrupt_handle(&gb.cpu, &gb.mem);
     uint8_t ins = fetch_instruction(&gb.cpu, &gb.mem);
     // printf("%02X\n", ins);
-    cpu_step(ins, &gb.cpu, &gb.mem);
+    uint8_t cycles = cpu_step(ins, &gb.cpu, &gb.mem);
+    timer_step(&gb.cpu, &gb.mem, cycles);
   }
   // free(pixels);
 }
