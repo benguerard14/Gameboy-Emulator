@@ -45,5 +45,6 @@ typedef struct {
 uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem);
 uint8_t fetch_instruction(CPU *cpu, Memory_t *mem);
 uint8_t interrupt_handle(CPU *cpu, Memory_t *mem);
+void request_interrupt(Memory_t *mem, uint8_t interrupt_num);
 
 #endif

@@ -2,12 +2,14 @@
 #define GAMEBOY_H
 
 #include "cpu.h"
+#include "ppu.h"
 #include <stddef.h>
 #include <stdint.h>
 
 typedef struct {
   Memory_t mem;
   CPU cpu;
+  PPU ppu;
 } Gameboy;
 
 char *get_string_file(char *file, size_t *out_size);

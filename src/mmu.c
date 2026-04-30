@@ -40,16 +40,15 @@ void mem_write(Memory_t *mem, uint16_t addr, uint8_t val) {
   }
 
   if (addr < 0xFF80) {
-    mem->ioregs[addr - 0xFF00] = val;
+    mem->ioregs[addr - IO_REGS_ADDR] = val;
     // Check if serial data transfer
-    if (addr == 0xFF02) {
+    if (addr == SERIAL_DATA_CTRL) {
       if (val & 0x80) {
-        handle_serial_transfer(mem->ioregs[0x01]);
-        mem->ioregs[0x02] &= 0x7F;
+        handle_serial_transfer(mem->ioregs[SERIAL_DATA_OUT - IO_REGS_ADDR]);
+        mem->ioregs[SERIAL_DATA_CTRL - IO_REGS_ADDR] &= 0x7F;
       }
-    }
-    else if(addr == 0xFF04){
-      mem->ioregs[addr - 0xFF00] = 0;
+    } else if (addr == TIMER_DIV_ADDR) {
+      mem->ioregs[addr - IO_REGS_ADDR] = 0;
     }
     return;
   }

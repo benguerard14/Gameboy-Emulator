@@ -3,6 +3,21 @@
 
 #include <stdint.h>
 
+#define IO_REGS_ADDR 0xFF00
+
+#define SERIAL_DATA_OUT 0xFF01
+#define SERIAL_DATA_CTRL 0xFF02
+
+#define TIMER_DIV_ADDR 0xFF04
+#define TIMER_COUNTER_ADDR 0xFF05
+#define TIMER_MODULO_ADDR 0xFF06
+#define TIMER_CONTROL_ADDR 0xFF07
+#define INTERRUPTS_FLAG_ADDR 0xFF0F
+
+#define LCD_Y_COORD 0xFF44
+
+#define INTERRUPTS_ENABLE_ADDR 0XFFFF
+
 typedef struct {
   uint8_t rom_bank_0[0x4000];
   uint8_t rom_bank_1[0x4000];

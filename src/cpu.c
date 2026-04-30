@@ -5,8 +5,8 @@
 #include <stdlib.h>
 
 uint8_t fetch_instruction(CPU *cpu, Memory_t *mem) {
-  //EI is one step later
-  if(cpu->IME_next){
+  // EI is one step later
+  if (cpu->IME_next) {
     cpu->IME = 1;
     cpu->IME_next = 0;
   }
@@ -41,7 +41,12 @@ uint16_t pop_16(CPU *cpu, Memory_t *mem) {
 }
 
 void enable_interrupts(CPU *cpu) { cpu->IME_next = 1; }
-void disable_interrupts(CPU *cpu) { cpu->IME = 0;}
+void disable_interrupts(CPU *cpu) { cpu->IME = 0; }
+
+void request_interrupt(Memory_t *mem, uint8_t interrupt_num) {
+  uint8_t IF = mem_read(mem, INTERRUPTS_FLAG_ADDR);
+  mem_write(mem, INTERRUPTS_FLAG_ADDR, IF | (1 << interrupt_num));
+}
 
 void set_flags(CPU *cpu, uint8_t Z, uint8_t N, uint8_t H, uint8_t C) {
   cpu->AF.flags.C = C;
@@ -219,42 +224,37 @@ uint16_t get_memreg16(uint8_t reg_num, CPU *cpu) {
   }
 }
 
-uint8_t interrupt_handle(CPU *cpu, Memory_t *mem){
-  uint8_t IE = mem_read(mem, 0XFFFF);
-  uint8_t IF = mem_read(mem, 0xFF0F);
+uint8_t interrupt_handle(CPU *cpu, Memory_t *mem) {
+  uint8_t IE = mem_read(mem, INTERRUPTS_ENABLE_ADDR);
+  uint8_t IF = mem_read(mem, INTERRUPTS_FLAG_ADDR);
   uint8_t pending = IE & IF;
-  
-  if(pending){
+
+  if (pending) {
     cpu->halted = 0;
   }
 
   if (!pending || !cpu->IME) {
     return 0;
   }
-  
+
   uint16_t addr;
   uint8_t bits;
-  if(pending & 0b1){
+  if (pending & 0b1) {
     addr = 0x40;
     bits = 0;
-  }
-  else if((pending >> 1) & 0b1){
+  } else if ((pending >> 1) & 0b1) {
     addr = 0x48;
     bits = 1;
-  }
-  else if((pending >> 2) & 0b1){
+  } else if ((pending >> 2) & 0b1) {
     addr = 0x50;
     bits = 2;
-  }
-  else if((pending >> 3) & 0b1){
+  } else if ((pending >> 3) & 0b1) {
     addr = 0x58;
     bits = 3;
-  }
-  else if((pending >> 4) & 0b1){
+  } else if ((pending >> 4) & 0b1) {
     addr = 0x60;
     bits = 4;
-  }
-  else{
+  } else {
     printf("ERROR: Invalid Interrupt");
     exit(-1);
   }
@@ -262,7 +262,7 @@ uint8_t interrupt_handle(CPU *cpu, Memory_t *mem){
   cpu->IME = 0;
   cpu->IME_next = 0;
 
-  mem_write(mem, 0xFF0F, IF & ~(1 << bits));
+  mem_write(mem, INTERRUPTS_FLAG_ADDR, IF & ~(1 << bits));
   push_16(cpu, mem, cpu->PC.val);
   cpu->PC.val = addr;
   return 5;
@@ -429,8 +429,8 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
     uint16_t val = get_reg16(block0_16sel, cpu);
     uint32_t sum = val + cpu->HL.val;
     set_flags(cpu, cpu->AF.flags.Z, 0,
-        ((cpu->HL.val & 0x0FFF) + (val & 0x0FFF)) > 0x0FFF,
-        (sum > 0xFFFF));
+              ((cpu->HL.val & 0x0FFF) + (val & 0x0FFF)) > 0x0FFF,
+              (sum > 0xFFFF));
     cpu->HL.val = (uint16_t)sum;
     return 2;
   }
@@ -576,8 +576,8 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   // stop: no idea but looks even worse than halt
   if (ins == 0x10) {
     get_imm8(cpu, mem);
-    //cpu->halted = 1;
-    // printf("Stop instruction. No idea what to do\n");
+    // cpu->halted = 1;
+    //  printf("Stop instruction. No idea what to do\n");
 
     return 2;
   }
