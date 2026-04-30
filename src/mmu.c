@@ -1,4 +1,5 @@
 #include "mmu.h"
+#include "ppu.h"
 #include <stdio.h>
 
 void handle_serial_transfer(uint8_t c) {
@@ -50,6 +51,7 @@ void mem_write(Memory_t *mem, uint16_t addr, uint8_t val) {
     } else if (addr == TIMER_DIV_ADDR) {
       mem->ioregs[addr - IO_REGS_ADDR] = 0;
     }
+
     return;
   }
 

@@ -4,7 +4,6 @@
 #include "cpu.h"
 #include "mmu.h"
 
-
 typedef struct {
   uint16_t dots;
   uint16_t accumulated_dots;

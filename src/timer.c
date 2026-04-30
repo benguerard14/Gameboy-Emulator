@@ -36,7 +36,6 @@ void timer_step(CPU *cpu, Memory_t *mem, uint8_t m_cycles) {
   while (cpu->tima_ticks >= tima_freq) {
     temp_count++;
     if (temp_count >= 256) {
-      uint8_t interrupts = mem_read(mem, INTERRUPTS_FLAG_ADDR);
       request_interrupt(mem, TIMER_INTERRUPT);
       temp_count = mem_read(mem, TIMER_MODULO_ADDR);
     }
