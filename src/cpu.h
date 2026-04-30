@@ -4,6 +4,10 @@
 #include "mmu.h"
 #include <stdint.h>
 
+#define VBLANK_INTERRUPT 0
+#define STAT_INTERRUPT 1
+#define TIMER_INTERRUPT 2
+
 typedef union {
   struct {
     uint8_t lo;
