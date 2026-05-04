@@ -1,7 +1,13 @@
-#ifndef UTIL_H
-#define UTIL_H
+#ifndef MMU_H
+#define MMU_H
 
 #include <stdint.h>
+
+#define TILE_DATA_1 0x8000
+#define TILE_DATA_2 0x8800
+
+#define TILEMAP_1_ADDR 0x9800
+#define TILEMAP_2_ADDR 0x9C00
 
 #define IO_REGS_ADDR 0xFF00
 
@@ -16,6 +22,8 @@
 
 #define LCD_CONTROL 0xFF40
 #define LCD_STATUS 0xFF41
+#define SCY_ADDR 0xFF42
+#define SCX_ADDR 0xFF43
 #define LCD_Y_COORD 0xFF44
 #define LCD_Y_COMPARE 0xFF45
 

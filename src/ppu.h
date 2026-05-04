@@ -11,6 +11,8 @@ typedef struct {
   uint16_t lines;
   uint16_t mode3_extra;
   uint8_t stat_interrupted;
+  uint16_t framebuffer[160 * 144];
+  uint8_t window_line;
 } PPU;
 
 void ppu_step(Memory_t *mem, PPU *ppu, uint8_t cycles);
