@@ -1,6 +1,7 @@
 #ifndef MMU_H
 #define MMU_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #define TILE_DATA_1 0x8000
@@ -43,6 +44,13 @@ typedef struct {
   uint8_t interrupt_enable;
   uint8_t joypad_action;
   uint8_t joypad_direction;
+  uint8_t *full_rom;
+  size_t rom_size;
+  uint8_t mbc_type;
+  uint8_t rom_bank;
+  uint8_t ram_bank;
+  uint8_t ram_enabled;
+  uint8_t mbc1_mode;
 } __attribute__((packed)) Memory_t;
 
 void mem_write(Memory_t *mem, uint16_t addr, uint8_t val);

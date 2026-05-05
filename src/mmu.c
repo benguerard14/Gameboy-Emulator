@@ -7,8 +7,27 @@ void handle_serial_transfer(uint8_t c) {
 }
 
 void mem_write(Memory_t *mem, uint16_t addr, uint8_t val) {
+  if (addr < 0x2000) {
+    mem->ram_enabled = (val & 0x0F) == 0x0A;
+    return;
+  }
+  if (addr < 0x4000) {
+    uint8_t bank = val & 0x1F;
+    if (bank == 0)
+      bank = 1;
+    mem->rom_bank = (mem->rom_bank & 0x60) | bank;
+    return;
+  }
+  if (addr < 0x6000) {
+    if (mem->mbc1_mode == 0)
+      mem->rom_bank =
+          (mem->rom_bank & 0x1F) | ((val & 0x03) << 5); // add 2 bits on top
+    else
+      mem->ram_bank = val & 0x03; // or select RAM bank
+    return;
+  }
   if (addr < 0x8000) {
-    // ROM → usually ignore or handle MBC later
+    mem->mbc1_mode = val & 0x01; // 0 or 1
     return;
   }
   if (addr < 0xA000) {
@@ -73,7 +92,7 @@ uint8_t mem_read(Memory_t *mem, uint16_t addr) {
   if (addr < 0x4000)
     return mem->rom_bank_0[addr];
   if (addr < 0x8000)
-    return mem->rom_bank_1[addr - 0x4000];
+    return mem->full_rom[mem->rom_bank * 0x4000 + (addr - 0x4000)];
   if (addr < 0xA000)
     return mem->VRAM[addr - 0x8000];
   if (addr < 0xC000)

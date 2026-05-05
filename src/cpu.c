@@ -586,6 +586,8 @@ uint8_t cpu_step(uint8_t ins, CPU *cpu, Memory_t *mem) {
   uint8_t reg_mask = 0b11000000;
   //  halt: absolutely no idea what it does and hope i don't have to find out
   if (ins == 0x76) {
+    printf("HALT at PC: %04X IME: %d IF: %02X IE: %02X\n", cpu->PC.val - 1,
+           cpu->IME, mem_read(mem, 0xFF0F), mem_read(mem, 0xFFFF));
     cpu->halted = 1;
     // printf("Halt instruction. No idea what to do\n");
     return 1;

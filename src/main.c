@@ -63,7 +63,6 @@ void loop() {
       }
       timer_step(&gb.cpu, &gb.mem, cycles);
       ppu_step(&gb.mem, &gb.ppu, cycles);
-      static int steps = 0;
 
       frame_cycles += cycles * 4;
     }
@@ -74,10 +73,10 @@ void loop() {
     }
   }
 }
-int main() {
+int main(int argc, char *argv[]) {
   graphics_init();
   size_t size;
-  char *rom = get_string_file("roms/Tetris.gb", &size);
+  char *rom = get_string_file("roms/Pokemon-Blue.gb", &size);
   emulator_init(&gb, rom, size);
   free(rom);
   loop();

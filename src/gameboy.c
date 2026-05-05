@@ -40,9 +40,20 @@ char *get_string_file(char *file, size_t *out_size) {
 }
 
 void emulator_init(Gameboy *gb, char *rom, size_t size) {
-  // mmcpy to be changed
+  gb->mem.full_rom = malloc(size);
+  memcpy(gb->mem.full_rom, rom, size);
+  gb->mem.rom_size = size;
+  gb->mem.mbc_type = rom[0x0147];
+  gb->mem.rom_bank = 1;
+  gb->mem.ram_bank = 0;
+  gb->mem.ram_enabled = 0;
+  gb->mem.mbc1_mode = 0;
+
+  // Bank 0 fixed
   memcpy(gb->mem.rom_bank_0, rom, 0x4000);
+  // Bank 1 default
   memcpy(gb->mem.rom_bank_1, rom + 0x4000, 0x4000);
+
   gb->cpu.PC.val = 0x0100;
   gb->cpu.SP.val = 0xFFFE;
   gb->cpu.AF.AF = 0x01B0;
