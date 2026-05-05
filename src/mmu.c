@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 void handle_serial_transfer(uint8_t c) {
-  putchar(c);
+  // putchar(c);
   fflush(stdout);
 }
 
@@ -89,6 +89,8 @@ uint8_t mem_read(Memory_t *mem, uint16_t addr) {
     return mem->OAM[addr - 0xFE00];
 
   if (addr < 0xFF00)
+    return 0xFF;
+  if (addr == 0xFF00) // <-- ADD THIS
     return 0xFF;
 
   if (addr < 0xFF80)

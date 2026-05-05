@@ -240,8 +240,6 @@ void ppu_step(Memory_t *mem, PPU *ppu, uint8_t cycles) {
       ppu->lines = (ppu->lines + 1) % 154;
       check_line(mem, ppu);
       if (ppu->lines == 144) {
-        printf("LY=%d IF=%02X IE=%02X \n", mem_read(mem, 0xFF44),
-               mem_read(mem, 0xFF0F), mem_read(mem, 0xFFFF));
         ppu->mode = 1;
         uint8_t stat = mem_read(mem, LCD_STATUS);
         stat &= ~(0x3);

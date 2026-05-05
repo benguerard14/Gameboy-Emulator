@@ -12,7 +12,6 @@ Gameboy gb;
 
 void loop() {
   SDL_Event event;
-  printf("%02X\n", mem_read(&gb.mem, 0x0147));
   while (1) {
     while (SDL_PollEvent(&event)) {
       if (event.type == SDL_QUIT) {
@@ -33,9 +32,6 @@ void loop() {
     timer_step(&gb.cpu, &gb.mem, cycles);
     ppu_step(&gb.mem, &gb.ppu, cycles);
     static int steps = 0;
-    if (++steps % 100000 == 0)
-      printf("LCDC=%02X LY=%02X STAT=%02X\n", mem_read(&gb.mem, 0xFF40),
-             mem_read(&gb.mem, 0xFF44), mem_read(&gb.mem, 0xFF41));
   }
   // free(pixels);
 }
