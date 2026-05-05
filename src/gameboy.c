@@ -51,6 +51,9 @@ void emulator_init(Gameboy *gb, char *rom, size_t size) {
   gb->cpu.HL.val = 0x014D;
   gb->cpu.IME = 0;
 
+  gb->mem.joypad_action = 0xFF;
+  gb->mem.joypad_direction = 0xFF;
+
   mem_write(&gb->mem, 0xFF05, 0x00); // TIMA
   mem_write(&gb->mem, 0xFF06, 0x00); // TMA
   mem_write(&gb->mem, 0xFF07, 0x00); // TAC

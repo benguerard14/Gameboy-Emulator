@@ -41,10 +41,16 @@ typedef struct {
   uint8_t ioregs[0x80];
   uint8_t HRAM[0x7F];
   uint8_t interrupt_enable;
+  uint8_t joypad_action;
+  uint8_t joypad_direction;
 } __attribute__((packed)) Memory_t;
 
 void mem_write(Memory_t *mem, uint16_t addr, uint8_t val);
 
 uint8_t mem_read(Memory_t *mem, uint16_t addr);
+
+void set_joypad_dir(Memory_t *mem, uint8_t bit, uint8_t pressed);
+
+void set_joypad_action(Memory_t *mem, uint8_t bit, uint8_t pressed);
 
 #endif

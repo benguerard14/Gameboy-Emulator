@@ -90,8 +90,20 @@ uint8_t mem_read(Memory_t *mem, uint16_t addr) {
 
   if (addr < 0xFF00)
     return 0xFF;
-  if (addr == 0xFF00) // <-- ADD THIS
-    return 0xFF;
+  if (addr == 0xFF00) {
+    uint8_t select = mem->ioregs[0];
+    uint8_t result = 0xFF;
+
+    if (!(select & 0x20)) {
+      // action buttons: A, B, Select, Start (bits 0-3)
+      result &= (mem->joypad_action | 0xF0);
+    }
+    if (!(select & 0x10)) {
+      // directional: Right, Left, Up, Down (bits 0-3)
+      result &= (mem->joypad_direction | 0xF0);
+    }
+    return result;
+  }
 
   if (addr < 0xFF80)
     return mem->ioregs[addr - 0xFF00];
@@ -100,4 +112,18 @@ uint8_t mem_read(Memory_t *mem, uint16_t addr) {
     return mem->HRAM[addr - 0xFF80];
 
   return mem->interrupt_enable;
+}
+
+void set_joypad_action(Memory_t *mem, uint8_t bit, uint8_t pressed) {
+  if (pressed)
+    mem->joypad_action &= ~(1 << bit); // 0 = pressed
+  else
+    mem->joypad_action |= (1 << bit); // 1 = released
+}
+
+void set_joypad_dir(Memory_t *mem, uint8_t bit, uint8_t pressed) {
+  if (pressed)
+    mem->joypad_direction &= ~(1 << bit);
+  else
+    mem->joypad_direction |= (1 << bit);
 }
